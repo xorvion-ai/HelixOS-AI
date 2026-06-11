@@ -2,9 +2,17 @@ import { DashboardClient } from "@/components/DashboardClient";
 import type { Agent, DashboardResponse } from "@/lib/types";
 import { getServerAccessToken } from "@/lib/supabase/server";
 
-// The browser talks to /api (same origin); for the initial server render we
-// hit the API directly via the dev proxy target or same-origin on Vercel.
-const SERVER_API = process.env.API_PROXY_TARGET || "http://127.0.0.1:8000";
+// The browser talks to /api (same origin); the server render needs an absolute
+// base. On Vercel the SSR and the Python /api function are separate lambdas, so
+// SSR must call the deployment's own public URL (VERCEL_URL) — not localhost.
+// API_PROXY_TARGET overrides (local dev proxy / split backend); otherwise we
+// fall back to the local FastAPI dev server.
+function serverApiBase(): string {
+  if (process.env.API_PROXY_TARGET) return process.env.API_PROXY_TARGET;
+  if (process.env.VERCEL_URL) return `https://${process.env.VERCEL_URL}`;
+  return "http://127.0.0.1:8000";
+}
+const SERVER_API = serverApiBase();
 
 async function load<T>(path: string, token: string | null): Promise<T> {
   const res = await fetch(`${SERVER_API}${path}`, {
