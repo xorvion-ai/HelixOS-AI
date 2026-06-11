@@ -3,7 +3,8 @@
   "functions": {
     "api/index.py": {
       "runtime": "@vercel/python@4.3.1",
-      "maxDuration": 300
+      "maxDuration": 300,
+      "excludeFiles": "{node_modules,.next,.git,tests,Helix11,.code-review-graph}/**"
     }
   },
   "rewrites": [

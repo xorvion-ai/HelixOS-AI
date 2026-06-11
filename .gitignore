@@ -29,3 +29,11 @@ Thumbs.db
 .vscode/
 # Added by code-review-graph
 .code-review-graph/
+
+# Claude Code tooling (not part of the project)
+.claude/
+CLAUDE.md
+
+# Build artifacts / logs
+*.log
+*.tsbuildinfo
