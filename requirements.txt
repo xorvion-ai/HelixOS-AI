@@ -1,0 +1,34 @@
+# ============================================================
+# HelixOS AI — Python backend dependencies
+# ============================================================
+
+# --- Core API (Phase A) ---
+fastapi==0.115.6
+uvicorn[standard]==0.34.0
+pydantic==2.10.4
+pydantic-settings==2.7.1
+python-dotenv==1.0.1
+httpx==0.28.1
+
+# --- AI / orchestration (Phase B/C) — REQUIRED for live mode ---
+# With GOOGLE_API_KEY set, the LangGraph graph runs all 8 agents on Gemini with
+# real tool-calling, RAG (Gemini embeddings) and memory. Without it, the backend
+# stays in demo mode and these are unused.
+google-genai==1.9.0
+langgraph==0.2.62
+langchain-core==0.3.29
+
+# --- RAG vector store (OPTIONAL) ---
+# Live RAG runs on an in-memory Gemini-embedding index (no install needed).
+# Chroma Cloud is the optional hosted store for larger corpora / persistence.
+# chromadb==0.5.23
+
+# --- Data / Supabase (OPTIONAL) ---
+# Durable Postgres persistence + multi-workspace + Auth. Without SUPABASE_URL /
+# SUPABASE_SERVICE_KEY the backend stays in demo mode and this is unused
+# (imported lazily only when those keys are set).
+supabase==2.11.0
+# Routes Python SSL through the OS trust store so httpx-based clients work on
+# TLS-inspecting networks (the corporate CA isn't in certifi). Optional + safe
+# everywhere; helix/config.py injects it only if installed.
+truststore==0.10.4

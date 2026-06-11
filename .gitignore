@@ -1,0 +1,31 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.egg-info/
+.pytest_cache/
+
+# Env / secrets
+.env
+.env.local
+.env*.local
+
+# Node / Next.js
+node_modules/
+.next/
+out/
+.vercel/
+npm-debug.log*
+
+# Chroma local persistence (if used as fallback)
+.chroma/
+chroma_data/
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+# Added by code-review-graph
+.code-review-graph/
