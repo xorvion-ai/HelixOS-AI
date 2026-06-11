@@ -1,0 +1,13 @@
+# Keep heavy / non-runtime files out of the serverless function bundle.
+# (The Next.js frontend is built separately; the Python function only needs
+#  helix/ + api/ + its pip deps.)
+node_modules
+.next
+.git
+.venv
+.pytest_cache
+__pycache__
+tests
+Helix11
+.code-review-graph
+*.log
