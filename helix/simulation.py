@@ -42,6 +42,12 @@ log = logging.getLogger("helix.simulation")
 # reports the workspace row changed underneath us (optimistic-locking).
 _MAX_SAVE_RETRIES = 4
 
+# Built-in preset scenario ids. When the active scenario is one of these, the
+# workspace is showing *demo* content (the seeded CouponEx story, sample feed,
+# insights and knowledge base). A real user company (a "custom" business) is
+# NOT a preset, so it shows only its own data — empty until cycles run.
+_PRESET_IDS = {s.id for s in seed.SCENARIOS}
+
 
 def _seed_to_state(cycle: int, s: ScenarioSeed) -> CyclePoint:
     """Project a scenario seed into a cycle-0 business-state row."""
@@ -90,15 +96,20 @@ class Simulation:
         store authoritative (the serverless requirement)."""
         self._ws = self._store.ensure(self._workspace_id, seed_demo=self._seed_demo)
 
-    def load_scenario(self, scenario_id: str, custom_seed: ScenarioSeed | None) -> None:
+    def load_scenario(
+        self, scenario_id: str, custom_seed: ScenarioSeed | None, name: str | None = None
+    ) -> None:
         """Load a preset (or custom) business as the active simulation,
-        resetting to cycle 0 with those seed metrics."""
+        resetting to cycle 0 with those seed metrics. For a custom business,
+        `name` (the user's company name) is carried onto the scenario."""
         with self._lock:
             self._hydrate()
             if scenario_id == "custom" and custom_seed is not None:
+                company = (name or "").strip() or "Custom business"
                 scenario = Scenario(
-                    id="custom", name="Custom business", tag="Custom · Your seed metrics",
-                    desc="A custom business defined from seed metrics.", active=True,
+                    id="custom", name=company, tag="Your company",
+                    desc="Your business — agents run autonomous cycles against your real metrics.",
+                    active=True,
                     seed=custom_seed,
                 )
                 base_seed = custom_seed
@@ -113,6 +124,13 @@ class Simulation:
             self._persist()
 
     # --- workspace-state proxies ---------------------------------------
+
+    @property
+    def is_demo(self) -> bool:
+        """True when the active scenario is a built-in preset (the seeded demo
+        content makes sense). False for a real user company / unset workspace —
+        those show only their own data."""
+        return self._ws.scenario.id in _PRESET_IDS
 
     @property
     def scenario(self) -> Scenario:

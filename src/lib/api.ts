@@ -56,10 +56,10 @@ export const api = {
   me: () => req<Me>("/api/me"),
   dashboard: () => req<DashboardResponse>("/api/dashboard"),
   scenarios: () => req<Scenario[]>("/api/scenarios"),
-  startSimulation: (scenario_id: string, custom_seed?: ScenarioSeed) =>
+  startSimulation: (scenario_id: string, custom_seed?: ScenarioSeed, name?: string) =>
     req<DashboardResponse>("/api/simulation/start", {
       method: "POST",
-      body: JSON.stringify({ scenario_id, custom_seed: custom_seed ?? null }),
+      body: JSON.stringify({ scenario_id, custom_seed: custom_seed ?? null, name: name ?? null }),
     }),
   runCycle: () =>
     req<CycleRunResponse>("/api/cycle/run", {

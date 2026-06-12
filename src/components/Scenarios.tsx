@@ -62,7 +62,10 @@ export function ScenariosScreen() {
               style={{ borderColor: sel === s.id ? "var(--accent)" : "var(--border)", borderWidth: sel === s.id ? 2 : 1, padding: "var(--s5)" }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
                 <div>
-                  <div style={{ fontWeight: 650, fontSize: 16 }}>{s.name}</div>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    <span style={{ fontWeight: 650, fontSize: 16 }}>{s.name}</span>
+                    {s.id === "couponex" && <Badge tone="neutral">Demo</Badge>}
+                  </div>
                   <div style={{ fontSize: 12, color: "var(--text-3)", marginTop: 2, fontWeight: 600 }}>{s.tag}</div>
                 </div>
                 {s.id === sim.scenario.id && <Badge tone="accent" dot>Active</Badge>}

@@ -122,9 +122,15 @@ def me(user: AuthUser = Depends(current_user), sim: Simulation = Depends(current
 # --- Scenarios & simulation --------------------------------------------
 
 @app.get("/api/scenarios", response_model=list[Scenario])
-def list_scenarios(sim: Simulation = Depends(current_sim)) -> list[Scenario]:
+def list_scenarios(
+    user: AuthUser = Depends(current_user), sim: Simulation = Depends(current_sim)
+) -> list[Scenario]:
+    """Preset businesses for the picker. Admins (the demo owner) see every
+    preset; everyone else sees only the CouponEx demo — they're meant to set up
+    their own company (the "Custom business" card), not pick another sample."""
+    presets = seed.SCENARIOS if user.is_admin else [s for s in seed.SCENARIOS if s.id == "couponex"]
     # Reflect which preset is currently active in the simulation.
-    return [s.model_copy(update={"active": s.id == sim.scenario.id}) for s in seed.SCENARIOS]
+    return [s.model_copy(update={"active": s.id == sim.scenario.id}) for s in presets]
 
 
 @app.post("/api/simulation/start", response_model=DashboardResponse)
@@ -132,7 +138,7 @@ def start_simulation(
     req: StartSimulationRequest, sim: Simulation = Depends(current_sim)
 ) -> DashboardResponse:
     try:
-        sim.load_scenario(req.scenario_id, req.custom_seed)
+        sim.load_scenario(req.scenario_id, req.custom_seed, name=req.name)
     except KeyError as e:
         raise HTTPException(status_code=404, detail=str(e)) from e
     return _dashboard(sim)
@@ -224,15 +230,21 @@ def cron_cycle(authorization: str | None = Header(default=None)) -> dict:
 # --- Dashboard (Command Center) ----------------------------------------
 
 def _dashboard(sim: Simulation) -> DashboardResponse:
+    # Only the demo (preset) workspace falls back to the seeded sample insights
+    # and activity feed. A real user company shows ONLY its own data — empty
+    # until it runs cycles.
+    insights = sim.insights or (seed.INSIGHTS if sim.is_demo else [])
+    # Real workspaces have no seeded feed; their feed is built live as cycles run.
+    activity = seed.BASE_FEED if sim.is_demo else []
     return DashboardResponse(
         cycle=sim.cycle,
         scenario=sim.scenario,
         state=sim.state,
         prev=sim.prev,
         history=sim.history,
-        insights=sim.insights or seed.INSIGHTS,
+        insights=insights,
         approvals=sim.approvals,
-        activity=seed.BASE_FEED,
+        activity=activity,
         is_running=sim.is_running,
     )
 
@@ -260,8 +272,9 @@ def list_agents() -> list[Agent]:
 
 
 @app.get("/api/agents/activity", response_model=list[AgentMessage])
-def agent_activity() -> list[AgentMessage]:
-    return seed.BASE_FEED
+def agent_activity(sim: Simulation = Depends(current_sim)) -> list[AgentMessage]:
+    # Sample feed only for the demo workspace; real companies start empty.
+    return seed.BASE_FEED if sim.is_demo else []
 
 
 @app.get("/api/agents/{agent_id}")
@@ -309,8 +322,9 @@ def resolve_approval(
 @app.get("/api/knowledge", response_model=list[KnowledgeCollection])
 def list_knowledge(sim: Simulation = Depends(current_sim)) -> list[KnowledgeCollection]:
     """Seed collections with any user-uploaded documents merged in (newest
-    first), so an upload appears in its collection immediately."""
-    cols = [c.model_copy(deep=True) for c in seed.KNOWLEDGE]
+    first), so an upload appears in its collection immediately. Real companies
+    see only their own uploaded docs — the sample corpus is demo-only."""
+    cols = [c.model_copy(deep=True) for c in seed.KNOWLEDGE] if sim.is_demo else []
     by_name = {c.collection: c for c in cols}
     for d in sim.documents:
         kd = KnowledgeDoc(name=d.name, chunks=d.chunks, size=d.size, updated=d.updated)
@@ -387,7 +401,7 @@ def list_memory(sim: Simulation = Depends(current_sim)) -> list[Memory]:
 
 @app.get("/api/insights", response_model=list[Insight])
 def list_insights(sim: Simulation = Depends(current_sim)) -> list[Insight]:
-    return sim.insights or seed.INSIGHTS
+    return sim.insights or (seed.INSIGHTS if sim.is_demo else [])
 
 
 # --- Admin console (owner-scoped) --------------------------------------

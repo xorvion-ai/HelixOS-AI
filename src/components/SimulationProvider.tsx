@@ -22,7 +22,7 @@ export interface Sim extends DashCtx {
   navParams: Record<string, unknown>;
   setScreen: (s: Screen, params?: Record<string, unknown>) => void;
   runCycle: () => Promise<void>;
-  loadScenario: (id: string, customSeed?: ScenarioSeed) => Promise<void>;
+  loadScenario: (id: string, customSeed?: ScenarioSeed, name?: string) => Promise<void>;
 }
 
 const Ctx = createContext<Sim | null>(null);
@@ -93,8 +93,8 @@ export function SimulationProvider({
     try { await api.resolveApproval(id, decision); } catch { /* optimistic */ }
   }
 
-  async function loadScenario(id: string, customSeed?: ScenarioSeed) {
-    const d = await api.startSimulation(id, customSeed);
+  async function loadScenario(id: string, customSeed?: ScenarioSeed, name?: string) {
+    const d = await api.startSimulation(id, customSeed, name);
     setScenario(d.scenario);
     setHistory(d.history);
     setState(d.state);

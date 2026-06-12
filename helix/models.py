@@ -170,6 +170,8 @@ class Insight(BaseModel):
 class StartSimulationRequest(BaseModel):
     scenario_id: str
     custom_seed: ScenarioSeed | None = None
+    # Company name for a custom business (carried onto the scenario).
+    name: str | None = None
 
 
 class ResolveApprovalRequest(BaseModel):

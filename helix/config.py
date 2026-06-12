@@ -60,9 +60,9 @@ class Settings(BaseSettings):
     google_api_key_2: str | None = None
     gemini_model_pro: str = "gemini-2.5-pro"
     gemini_model_flash: str = "gemini-2.5-flash"
-    # Model used by the second (fallback) key. Set this to the exact model id
-    # you want the spare key to serve (e.g. a flash-lite tier).
-    gemini_model_fallback: str = "gemini-2.5-flash-lite"
+    # Model used by the second (fallback) key. Defaults to Gemini 3.1 Flash-Lite
+    # (a free tier). Override via GEMINI_MODEL_FALLBACK if you use a different id.
+    gemini_model_fallback: str = "gemini-3.1-flash-lite"
     gemini_embed_model: str = "text-embedding-004"
 
     # --- Chroma Cloud (RAG vector store) ---

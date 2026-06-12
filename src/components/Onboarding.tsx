@@ -45,7 +45,7 @@ export function Onboarding() {
     try {
       // churn is entered as a percentage; the model stores a fraction.
       const payload: ScenarioSeed = { ...seed, churn: seed.churn / 100 };
-      await sim.loadScenario("custom", payload);
+      await sim.loadScenario("custom", payload, name.trim());
       setOnboarded(true);
       sim.setScreen("command");
     } catch {
