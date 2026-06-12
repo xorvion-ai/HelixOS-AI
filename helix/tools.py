@@ -43,6 +43,10 @@ class ToolContext:
     memory_store: MemoryStore
     memories: list[Memory]
     goal: str = ""
+    # Whether this is the seeded demo workspace (CouponEx). Real user companies
+    # set this False so tools generate company-appropriate, not demo, content.
+    is_demo: bool = True
+    company: str = ""
     citations: list[str] = field(default_factory=list)
     recalled: list[str] = field(default_factory=list)
     events: list[str] = field(default_factory=list)
@@ -155,20 +159,29 @@ def _marketing_tools(ctx: ToolContext) -> list[ToolSpec]:
         return " | ".join(h.text for h in hits) or "no matching docs"
 
     def create_campaign(args):
-        spend = int(args.get("spend", 1200))
+        # Demo workspace keeps its rich CouponEx story; a real company's
+        # campaign is sized to *their* marketing budget and isn't demo-branded.
+        if ctx.is_demo:
+            default_channel, default_audience = "Instagram + TikTok short-form", "18–25"
+            default_spend = 1200
+        else:
+            default_channel, default_audience = "paid social", "your core segment"
+            # ~60% of their marketing budget, so the spend reflects their numbers.
+            default_spend = max(0, int(ctx.state.get("budget", 0) * 0.6))
+        spend = int(args.get("spend", default_spend))
         ctx.campaign = {
-            "channel": args.get("channel", "Instagram + TikTok short-form"),
+            "channel": args.get("channel", default_channel),
             "spend": spend,
-            "audience": args.get("audience", "18–25"),
-            "creative": "3 short-form videos",
+            "audience": args.get("audience", default_audience),
+            "creative": "short-form video set",
             "duration": "14 days",
         }
         if spend > 1000:  # Channel Playbook: spend >$1k must be approved
             ctx.approvals.append({
                 "agent": "marketing", "action": "Send campaign", "risk": "medium",
                 "title": f"Launch '{ctx.campaign['channel']}' paid campaign",
-                "summary": f"Spend ${spend} on {ctx.campaign['channel']}, audience {ctx.campaign['audience']}. "
-                           f"Est. +5% users, CAC −$3.",
+                "summary": f"Spend ${spend:,} on {ctx.campaign['channel']}, audience {ctx.campaign['audience']}. "
+                           f"Est. +5% users, lower CAC.",
                 "payload": dict(ctx.campaign),
             })
             return f"campaign drafted (${spend}) — spend >$1k, approval requested"

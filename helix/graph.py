@@ -45,6 +45,8 @@ class HelixState(TypedDict, total=False):
     prev: dict[str, Any]
     business: dict[str, Any]
     goal: str
+    is_demo: bool
+    company: str
     route: list[str]
     steps: Annotated[list[dict], operator.add]
     events: Annotated[list[str], operator.add]
@@ -185,6 +187,7 @@ class HelixGraph:
         return ToolContext(
             state=dict(state["business"]), cycle=state["cycle"], prev=dict(state["prev"]),
             rag=self._rag, memory_store=self._mem, memories=memories, goal=state.get("goal", ""),
+            is_demo=state.get("is_demo", True), company=state.get("company", ""),
         )
 
     def _run(self, node: str, agent: str, model: str, state: HelixState, ctx: ToolContext,

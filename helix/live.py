@@ -90,7 +90,8 @@ class LiveRunner:
 
     def start(self, *, prev: CyclePoint, cycle: int, memories: list[Memory],
               interactive: bool, mk_trace_id: Callable[[], str],
-              mk_mem_id: Callable[[], str], mk_approval_id: Callable[[], str]) -> LiveOutcome:
+              mk_mem_id: Callable[[], str], mk_approval_id: Callable[[], str],
+              is_demo: bool = True, company: str = "") -> LiveOutcome:
         thread_id = f"cycle-{cycle}-{uuid.uuid4().hex[:8]}"
         config = {"configurable": {"thread_id": thread_id, "memories": memories}}
         init = {
@@ -99,6 +100,7 @@ class LiveRunner:
             "goal": "", "steps": [], "events": [], "insights": [],
             "approvals": [], "citations": [], "recalled": [],
             "campaign": None, "learning": None,
+            "is_demo": is_demo, "company": company,
         }
         self._graph.invoke(init, config)
         return self._collect(thread_id, config, prev, cycle, 0,

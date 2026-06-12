@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { Approval, KnowledgeCollection, Memory, Trace } from "@/lib/types";
 import { api } from "@/lib/api";
 import { fmt } from "@/lib/agents";
@@ -180,6 +180,7 @@ function AgentChat({ agentId, agentName }: { agentId: string; agentName: string 
   const [msgs, setMsgs] = useState<{ role: "you" | "agent"; text: string }[]>([]);
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
+  const fileRef = useRef<HTMLInputElement>(null);
 
   async function send() {
     const q = input.trim();
@@ -192,6 +193,26 @@ function AgentChat({ agentId, agentName }: { agentId: string; agentName: string 
       setMsgs((m) => [...m, { role: "agent", text: res.reply }]);
     } catch {
       setMsgs((m) => [...m, { role: "agent", text: "I couldn't reach the backend just now — try again." }]);
+    } finally { setBusy(false); }
+  }
+
+  // Upload a business doc/image: ingest it into the knowledge base so the
+  // agents can use it as context (RAG) when they run cycles.
+  async function onFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = ""; // allow re-selecting the same file
+    if (!file || busy) return;
+    setBusy(true);
+    setMsgs((m) => [...m, { role: "you", text: `📎 ${file.name}` }]);
+    try {
+      const isText = /text|json|csv|markdown|xml|html/i.test(file.type) || /\.(txt|md|csv|json|tsv|log)$/i.test(file.name);
+      const content = isText
+        ? (await file.text()).slice(0, 20000)
+        : `[${file.type || "file"}] ${file.name} — uploaded for context.`;
+      await api.uploadDocument(file.name, "company_docs", content);
+      setMsgs((m) => [...m, { role: "agent", text: `Added “${file.name}” to your Knowledge Base. I'll use it as context on the next cycle.` }]);
+    } catch {
+      setMsgs((m) => [...m, { role: "agent", text: "Couldn't upload that file — please try again." }]);
     } finally { setBusy(false); }
   }
 
@@ -213,10 +234,21 @@ function AgentChat({ agentId, agentName }: { agentId: string; agentName: string 
         </div>
       )}
       <div style={{ display: "flex", gap: 8 }}>
+        <input ref={fileRef} type="file" hidden
+          accept=".txt,.md,.csv,.json,.tsv,.log,.pdf,image/*"
+          onChange={onFile} />
+        <button type="button" aria-label="Upload a document or image" title="Upload a business doc or image"
+          onClick={() => fileRef.current?.click()} disabled={busy}
+          style={{ width: 38, flexShrink: 0, display: "grid", placeItems: "center", borderRadius: 9, border: "1px solid var(--border-strong)", background: "var(--surface)", color: "var(--text-2)", cursor: busy ? "default" : "pointer" }}>
+          <Icon name="paperclip" size={16} />
+        </button>
         <input value={input} onChange={(e) => setInput(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") send(); }}
           placeholder={`Message ${agentName}…`}
           style={{ flex: 1, padding: "9px 12px", borderRadius: 9, border: "1px solid var(--border-strong)", background: "var(--bg)", color: "var(--text)", fontSize: 13, outline: "none", fontFamily: "inherit" }} />
         <Button variant="primary" icon="arrowRight" onClick={send} disabled={busy || !input.trim()} />
+      </div>
+      <div style={{ fontSize: 11, color: "var(--text-3)", marginTop: 7 }}>
+        Upload a business doc or image (📎) and {agentName} will use it as context.
       </div>
     </div>
   );

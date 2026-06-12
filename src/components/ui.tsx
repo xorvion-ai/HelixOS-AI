@@ -50,6 +50,8 @@ const PATHS: Record<string, string> = {
   sun: "M12 7a5 5 0 1 0 0 10 5 5 0 0 0 0-10ZM12 2v2M12 20v2M4 12H2M22 12h-2M5 5l1.5 1.5M17.5 17.5L19 19M19 5l-1.5 1.5M6.5 17.5L5 19",
   moon: "M20 14.5A8 8 0 0 1 9.5 4 7 7 0 1 0 20 14.5Z",
   scroll: "M6 3h10a2 2 0 0 1 2 2v13a2 2 0 0 0 2 2H8a2 2 0 0 1-2-2zM6 3a2 2 0 0 0-2 2v2h2M9 8h6M9 12h6M9 16h4",
+  paperclip: "M21 11l-8.5 8.5a5 5 0 0 1-7-7L14 4a3.5 3.5 0 0 1 5 5l-8.5 8.5a2 2 0 0 1-3-3L15 6",
+  upload: "M12 16V4M7 9l5-5 5 5M5 20h14",
 };
 
 export function Icon({ name, size = 18, stroke = 1.6, fill = "none", style, className }: {

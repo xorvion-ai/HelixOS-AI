@@ -289,6 +289,7 @@ class Simulation:
                 interactive=interactive,
                 mk_trace_id=self._next_trace_id, mk_mem_id=self._next_mem_id,
                 mk_approval_id=self._next_approval_id,
+                is_demo=self.is_demo, company=self.scenario.name,
             )
             return self._commit_outcome(outcome, client_id)
 

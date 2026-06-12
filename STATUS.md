@@ -1,16 +1,29 @@
 # HelixOS AI — Project Status & Reference
 
-_Last updated: 2026-06-12 — **Multi-tenant + GitHub published; Vercel deploy
-BLOCKED on a 250 MB Python serverless function** (see §13 → "DEPLOY BLOCKER").
-This session added: per-user workspaces + onboarding, admin allowlist
+_Last updated: 2026-06-13 — **UX + real-vs-demo data separation pass; Vercel
+deploy still BLOCKED on a 250 MB Python serverless function** (see §13 →
+"DEPLOY BLOCKER"). This session (2026-06-13) added: a one-click light/dark
+toggle (replacing the accent/density panel), hid the Gemini model label (shows
+"Live"), a Terms & Conditions page with a vertical Support/Privacy/Terms bar, a
+working **Edit profile** modal + **sign-in avatar** (profile + sidebar), a
+**second Gemini API key with automatic 429/quota failover** to
+`gemini-3.1-flash-lite`, a **background cron** endpoint (`/api/cron/cycle`,
+`CRON_SECRET`-guarded) + daily Vercel cron, **demo-vs-real data separation**
+(`Simulation.is_demo` gates seeded insights/feed/knowledge; non-admins see only
+the CouponEx "Demo" preset + Custom; onboarding carries the company name; the
+marketing `create_campaign` approval is now sized to the user's own budget, not
+hardcoded CouponEx $1200), and **file/image upload in agent chat** (ingests to
+the Knowledge Base). All pushed to both GitHub repos with per-account authorship
+(no co-author). tsc + 34 pytest + 41 offline checks green.
+
+Prior (2026-06-12): per-user workspaces + onboarding, admin allowlist
 (`sumitchoudhary2812@gmail.com`-only Admin Console + demo data), dynamic
 profile/sidebar, `/api/me`. Pushed to **github.com/Sumitkr28/HelixOS-AI** and
 **github.com/xorvion-ai/HelixOS-AI** (per-account READMEs + favicon
 `src/app/icon.svg`; CLAUDE.md/.claude/build-logs removed). xorvion-ai also has
-Vercel Web Analytics (`@vercel/analytics`, pnpm). Earlier this session:
-feature-complete pass (Tweaks/upload/chat/responsive/pytest), Realtime, Admin
-Console, Supabase persistence+Auth. tsc + 34 pytest + 41 offline checks green;
-local prod build green. **The deployed Vercel build fails** — fix that next._
+Vercel Web Analytics (`@vercel/analytics`, pnpm). Earlier: feature-complete pass
+(Tweaks/upload/chat/responsive/pytest), Realtime, Admin Console, Supabase
+persistence+Auth. **The deployed Vercel build still fails** — fix that next._
 
 This is the **single source of truth** for the project: what it is, what we're
 building, what's done, and what's left — in detail. Companion docs:
@@ -509,6 +522,67 @@ Next.js project there's no `vercel.json` knob to stop it.
   `https://helix-os-ai.vercel.app/auth/callback` to Supabase Auth redirect URLs +
   Google OAuth; update the README live-badge URL (`helix-os-ai.vercel.app`).
 - 🔐 Rotate the leaked secrets (GitHub PATs, Gemini key, Supabase service_role).
+
+### Landed this session (2026-06-13) — UX + real-vs-demo data separation
+Pushed to both repos (per-account author, no co-author): xorvion-ai
+`d933a52→ca08375`, Sumitkr28 `57432af→4ff1be7` (+ a follow-up commit for the
+data-separation pass). All offline-verified: **tsc clean, 34 pytest, 41 live**.
+
+- ✅ **One-click theme toggle.** `Tweaks.tsx` is now a single sun/moon button
+  (light↔dark); the accent-hue + density controls were removed. Same
+  `helix.tweaks` localStorage key + pre-hydration script (no flash). Added `sun`
+  / `moon` / `scroll` / `paperclip` / `upload` icons to `ui.tsx`.
+- ✅ **Hid the model name.** Agents detail shows `Role · Live` (was
+  "Gemini 2.5 Flash"); profile Mode shows "Live" (was "Live (Gemini)").
+- ✅ **Terms & Conditions page** (`AccountScreens.tsx` `TermsScreen`, 10
+  clauses) + `Screen` type `"terms"` + `DashboardClient` route. Sidebar
+  Support/Privacy/**Terms** are now a **vertical** stack (`AppShell.tsx`).
+- ✅ **Edit profile works.** `EditProfileModal` updates the Supabase user's
+  `full_name`/`name` (`sb.auth.updateUser`) then refreshes `/api/me`.
+- ✅ **Sign-in avatar.** `auth.py` reads `avatar_url`/`picture` from
+  `user_metadata` → `AuthUser.picture` → `/api/me` `picture` → `Me.picture`;
+  rendered in the profile banner + sidebar (falls back to the initial).
+- ✅ **Second Gemini key + failover.** `config.py` `google_api_key_2` +
+  `gemini_keys` + `gemini_model_fallback` (default **`gemini-3.1-flash-lite`**).
+  `llm.py` `GeminiLLM` holds one client per key (`_KeySlot`); `_gen()` retries
+  the next key on a 429/`RESOURCE_EXHAUSTED`/quota error (`_is_quota_error`),
+  spare keys serve the fallback model. `embed()` fails over too. Demo/`FakeLLM`
+  path unchanged.
+- ✅ **Background cron.** `POST /api/cron/cycle` (guarded by `CRON_SECRET`;
+  503 when unset, 401 on bad token) steps the demo workspace (demo mode) or each
+  onboarded/idle workspace (Supabase) — `Store.list_onboarded_workspace_ids`
+  (InMemory + Supabase impls). `vercel.json` `crons` → daily `0 9 * * *`.
+  ⚠️ Vercel Hobby cron = once/day; true continuous needs a paid plan or an
+  always-on worker.
+- ✅ **Real-vs-demo data separation.** `Simulation.is_demo` = active scenario is
+  a built-in preset (`couponex`/`lumen`/`forge`). Seed sample content now shows
+  **only** for the demo: `/api/dashboard` (insights + activity feed),
+  `/api/agents/activity`, `/api/knowledge`, `/api/insights` all return empty for
+  a real/custom company. `/api/scenarios` lists every preset for admins but only
+  CouponEx for everyone else (UI badges it **"Demo"**). Onboarding now passes the
+  **company name** → `StartSimulationRequest.name` → custom scenario name (was
+  dropped). The marketing **`create_campaign`** approval is now sized to the
+  workspace's own marketing budget + generic channel/audience for real companies
+  (was hardcoded "Instagram + TikTok / $1,200") — threaded `is_demo`/`company`
+  through `live.start` → `HelixState` → `ToolContext`.
+- ✅ **File/image upload in agent chat.** `AgentChat` (`screens.tsx`) has a 📎
+  button → reads text files (else stores a reference) → `POST /api/documents`
+  (existing mock-chunk ingest) → the doc lands in the Knowledge Base for RAG.
+  _(Knowledge Base already had its own upload card.)_
+- 🟡 **Still demo-flavored:** the **whole-cycle scripted fallback**
+  (`_run_scripted`, used only when no Gemini key or a live cycle fully errors)
+  still replays the CouponEx `CYCLE_SCRIPT` traces/learning. With a key set the
+  live graph runs, so this only affects pure-demo / hard-fallback runs.
+- 🔧 **Env to set on Vercel** (also in the git-ignored `.env.production.local`,
+  ready to upload): `GOOGLE_API_KEY`, `GOOGLE_API_KEY_2`, `GEMINI_MODEL_FALLBACK`
+  (`gemini-3.1-flash-lite` — **verify the exact id in Google AI Studio**),
+  `GEMINI_MODEL_PRO`, `GEMINI_MODEL_FLASH`, `ADMIN_EMAILS`, `CRON_SECRET`,
+  `CORS_ORIGINS`, `SUPABASE_URL`, `SUPABASE_SERVICE_KEY`, `SUPABASE_ANON_KEY`,
+  `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`. Then redeploy +
+  run Supabase migrations `0001`→`0004`.
+- ⬜ **Not done (needs your input):** refresh the public homepage Command-Center
+  showcase mock to match the live app; the "add the words from the last pic"
+  request (unclear which words/pic).
 
 ### Multi-tenant + publish (2026-06-12)
 - **Per-user product**: `helix/auth.py` `resolve_user()` → `AuthUser`
