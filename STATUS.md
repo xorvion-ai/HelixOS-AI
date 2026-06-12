@@ -1,8 +1,16 @@
 # HelixOS AI — Project Status & Reference
 
-_Last updated: 2026-06-13 — **UX + real-vs-demo data separation pass; Vercel
-deploy still BLOCKED on a 250 MB Python serverless function** (see §13 →
-"DEPLOY BLOCKER"). This session (2026-06-13) added: a one-click light/dark
+_Last updated: 2026-06-13 — **🚀 DEPLOYED & LIVE on Vercel.** The 250 MB
+serverless-function blocker is resolved; the owner has set all Vercel env vars
+(both Gemini keys, `GEMINI_MODEL_FALLBACK=gemini-3.1-flash-lite`, `CRON_SECRET`,
+Supabase, `ADMIN_EMAILS`) and run Supabase migrations `0001`→`0004`. App is
+running in **live mode**. **Remaining gaps:** several agent tools are still
+mocked (`web_search`, `send_email`/SMTP, `rss_reader`, CRM); the **Support
+contact form posts to Web3Forms email, NOT to the Admin dashboard** — the Admin
+"Support queue" still shows seeded demo tickets, so real user tickets/bugs do
+**not** appear there yet (needs a `support_tickets` table + Admin read); cron is
+once/day on Hobby; pgvector/Chroma not wired. UX + real-vs-demo data separation
+pass (2026-06-13) added: a one-click light/dark
 toggle (replacing the accent/density panel), hid the Gemini model label (shows
 "Live"), a Terms & Conditions page with a vertical Support/Privacy/Terms bar, a
 working **Edit profile** modal + **sign-in avatar** (profile + sidebar), a
@@ -23,7 +31,7 @@ profile/sidebar, `/api/me`. Pushed to **github.com/Sumitkr28/HelixOS-AI** and
 `src/app/icon.svg`; CLAUDE.md/.claude/build-logs removed). xorvion-ai also has
 Vercel Web Analytics (`@vercel/analytics`, pnpm). Earlier: feature-complete pass
 (Tweaks/upload/chat/responsive/pytest), Realtime, Admin Console, Supabase
-persistence+Auth. **The deployed Vercel build still fails** — fix that next._
+persistence+Auth. (The Vercel deploy that was blocked here is now live.)_
 
 This is the **single source of truth** for the project: what it is, what we're
 building, what's done, and what's left — in detail. Companion docs:
@@ -583,6 +591,29 @@ data-separation pass). All offline-verified: **tsc clean, 34 pytest, 41 live**.
 - ⬜ **Not done (needs your input):** refresh the public homepage Command-Center
   showcase mock to match the live app; the "add the words from the last pic"
   request (unclear which words/pic).
+
+### Landed this session (2026-06-13, part 3) — deployed; CouponEx demo restores full history
+- ✅ **Loading the CouponEx "Demo" preset restores its full 7-cycle history**
+  (`WorkspaceState.reset_to_demo()`), so the demo charts aren't a flat 2-dot line
+  after one cycle. Non-demo presets / custom businesses still reset to cycle 0.
+  Tests updated (`test_load_couponex_restores_demo_history`); **35 pytest**.
+- ✅ **DEPLOYED & LIVE.** Owner resolved the 250 MB blocker, set all Vercel env
+  vars, and ran Supabase migrations `0001`→`0004`. Running in live mode.
+
+### ⬜ Open / next up (post-deploy)
+- **Real integrations (next task).** Replace the mocked agent tools with real
+  ones where free: `rss_reader` (real feeds — no creds, stdlib XML + httpx),
+  `web_search` (needs a provider key — e.g. Tavily/Brave free tier),
+  `send_email`/SMTP (needs SMTP or Resend creds). Files: `helix/tools.py`
+  (tool fns + `demo_args`), `helix/config.py` (new keys). Keep the demo/offline
+  fallback so a missing key degrades gracefully (don't bloat the serverless
+  function — prefer httpx + stdlib over heavy deps).
+- **Support tickets/bugs → Admin dashboard.** Today the Support form posts to
+  **Web3Forms email**, and the Admin "Support queue" shows **seeded demo
+  tickets** — real submissions do NOT appear in-app. To fix: a `support_tickets`
+  table (Supabase) + `POST /api/support` from the form + Admin reads real rows.
+- **Live smoke tests** with real keys (Gemini `mode:"live"`, second-key failover,
+  two-tab Realtime, cron run). pgvector/Chroma still optional.
 
 ### Landed this session (2026-06-13, part 2) — multimodal chat, real pipeline, demo graph variation
 Same-day follow-ups (offline-verified: tsc clean, 34 pytest, 41 live):
