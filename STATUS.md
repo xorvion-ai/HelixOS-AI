@@ -584,6 +584,35 @@ data-separation pass). All offline-verified: **tsc clean, 34 pytest, 41 live**.
   showcase mock to match the live app; the "add the words from the last pic"
   request (unclear which words/pic).
 
+### Landed this session (2026-06-13, part 2) — multimodal chat, real pipeline, demo graph variation
+Same-day follow-ups (offline-verified: tsc clean, 34 pytest, 41 live):
+
+- ✅ **Homepage Command-Center mock matches the app** (`home/visuals.tsx`):
+  vertical Support / Privacy / Terms bar in the mock sidebar; org chart switched
+  from `radial` to the **tree** layout the real Command Center uses.
+- ✅ **Real task pipeline.** `CommandCenter.tsx` `TaskPipeline` is no longer a
+  hardcoded `TASKS` array. The demo keeps a hand-authored showcase; a **real
+  company** builds the pipeline from its **actual cycle traces** (`api.traces`
+  for the current cycle → one card per completed agent step), with an empty
+  state ("Run a cycle…") until it has run one.
+- ✅ **Multimodal agent chat (image + doc analysis).** The 📎 in agent chat now
+  **stages an attachment** for the next message instead of silently ingesting:
+  images are sent to Gemini's multimodal model (`LLM.vision` → `GeminiLLM`
+  builds a `Part.from_bytes` image part; `FakeLLM`/demo returns an honest "needs
+  live mode" note); text docs are passed as context **and** ingested into the
+  Knowledge Base. New `ChatAttachment` model + `attachment` on `ChatRequest`;
+  `_agent_chat` branches on `kind` (`image`/`text`). Fixes the earlier
+  "I cannot view images" reply. New `image` icon in `ui.tsx`.
+- ✅ **Demo graphs look real.** `seed.CYCLE_HISTORY` + `lib/homeData.ts`
+  `SHOWCASE_HISTORY` reworked so every metric **wobbles up/down** (dips at C2/C4,
+  rebounds) instead of a smooth line. Endpoints (C0, C6) and the C5→C6 deltas
+  are pinned so the headline cards (+8.7% MRR, +6.6% users, 0.2pp churn, −$3 CAC)
+  stay correct. _(Real companies still start empty and fill in from their own
+  cycles — this only touches the **demo** seed.)_
+- ⬜ Still open: the public homepage mock numbers are a fixed demo snapshot (by
+  design); the unresolved **"words from the last pic"** request; and the **250 MB
+  Vercel deploy blocker** (§13 top) — nothing is live until that's fixed.
+
 ### Multi-tenant + publish (2026-06-12)
 - **Per-user product**: `helix/auth.py` `resolve_user()` → `AuthUser`
   (id/email/name/is_admin); `config.admin_emails` allowlist

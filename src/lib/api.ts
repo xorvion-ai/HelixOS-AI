@@ -85,10 +85,14 @@ export const api = {
       method: "POST",
       body: JSON.stringify({ name, collection, content }),
     }),
-  chatAgent: (agentId: string, message: string) =>
+  chatAgent: (
+    agentId: string,
+    message: string,
+    attachment?: { name: string; mime: string; kind: "image" | "text"; data: string },
+  ) =>
     req<ChatResponse>(`/api/agents/${agentId}/chat`, {
       method: "POST",
-      body: JSON.stringify({ message }),
+      body: JSON.stringify({ message, attachment: attachment ?? null }),
     }),
   memory: () => req<Memory[]>("/api/memory"),
   adminUsage: () => req<AdminUsage>("/api/admin/usage"),

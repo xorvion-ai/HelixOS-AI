@@ -1,7 +1,8 @@
 "use client";
 
-import { CSSProperties, useState } from "react";
-import type { AgentMessage } from "@/lib/types";
+import { CSSProperties, useEffect, useState } from "react";
+import type { AgentMessage, Trace } from "@/lib/types";
+import { api } from "@/lib/api";
 import { fmt } from "@/lib/agents";
 import { useAgents } from "./AgentsContext";
 import { useSim } from "./SimulationProvider";
@@ -86,14 +87,19 @@ function FeedRow({ msg, fresh }: { msg: AgentMessage; fresh: boolean }) {
 }
 
 // ---- This cycle's task pipeline ---------------------------------------
-const TASKS = [
+// The demo workspace shows a hand-authored showcase pipeline; a real company's
+// pipeline is built from the actual agent traces of its latest cycle (each
+// completed agent step = one task), so it reflects real work, not demo data.
+const PRESET_IDS = ["couponex", "lumen", "forge"];
+
+const DEMO_TASKS: { id: string; title: string; agent: string; status: string }[] = [
   { id: "T-31", title: "Set Q3 growth goal", agent: "founder", status: "done" },
   { id: "T-32", title: "Launch short-form campaign", agent: "marketing", status: "done" },
   { id: "T-33", title: "Approve campaign spend", agent: "operations", status: "approved" },
   { id: "T-34", title: "Publish SEO blog post", agent: "marketing", status: "running" },
   { id: "T-35", title: "Recompute KPI snapshot", agent: "analytics", status: "queued" },
   { id: "T-36", title: "Evaluate & store learnings", agent: "founder", status: "queued" },
-] as const;
+];
 
 const TASK_ST: Record<string, { label: string; bg: string; fg: string; dot: string }> = {
   done: { label: "Done", bg: "var(--ok-soft)", fg: "var(--ok)", dot: "var(--ok)" },
@@ -103,32 +109,59 @@ const TASK_ST: Record<string, { label: string; bg: string; fg: string; dot: stri
 };
 
 function TaskPipeline() {
-  const done = TASKS.filter((t) => t.status === "done" || t.status === "approved").length;
+  const ctx = useSim();
+  const isDemo = PRESET_IDS.includes(ctx.scenario.id);
+  const [tasks, setTasks] = useState<{ id: string; title: string; agent: string; status: string }[]>(
+    isDemo ? DEMO_TASKS : []
+  );
+
+  useEffect(() => {
+    if (isDemo) { setTasks(DEMO_TASKS); return; }
+    let on = true;
+    // Real company: derive the pipeline from this cycle's completed agent steps.
+    api.traces(undefined, ctx.cycle)
+      .then((ts: Trace[]) => {
+        if (!on) return;
+        // Traces come newest-first; show them in execution order.
+        setTasks([...ts].reverse().map((t) => ({ id: t.id, title: t.task, agent: t.agent, status: "done" })));
+      })
+      .catch(() => { if (on) setTasks([]); });
+    return () => { on = false; };
+  }, [isDemo, ctx.cycle]);
+
   return (
     <Card pad="0">
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "var(--s4) var(--s5)", borderBottom: "1px solid var(--border)" }}>
         <span style={{ fontWeight: 650, fontSize: 14 }}>This cycle&apos;s task pipeline</span>
-        <span className="mono" style={{ fontSize: 12, color: "var(--accent-strong)", fontWeight: 600 }}>{done}/{TASKS.length} complete</span>
+        {tasks.length > 0 && (
+          <span className="mono" style={{ fontSize: 12, color: "var(--accent-strong)", fontWeight: 600 }}>
+            {tasks.filter((t) => t.status === "done" || t.status === "approved").length}/{tasks.length} complete
+          </span>
+        )}
       </div>
-      <div style={{ display: "flex", alignItems: "center", overflowX: "auto", padding: "var(--s5) var(--s4)" }}>
-        {TASKS.map((t, i) => {
-          const st = TASK_ST[t.status];
-          return (
-            <div key={t.id} style={{ display: "flex", alignItems: "center" }}>
-              <div style={{ width: 152, flexShrink: 0, padding: "11px 12px", borderRadius: 12, background: st.bg, border: "1px solid var(--border)", display: "flex", flexDirection: "column", gap: 7 }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
-                  <AgentGlyph id={t.agent} size={20} />
-                  <span className="mono" style={{ fontSize: 11, color: "var(--text-3)" }}>{t.id}</span>
-                  <span style={{ marginLeft: "auto", width: 7, height: 7, borderRadius: 99, background: st.dot }} />
+      {tasks.length === 0 ? (
+        <Empty icon="flow" title="No tasks yet" text="Run a cycle and your agents' work will appear here as a live pipeline." />
+      ) : (
+        <div style={{ display: "flex", alignItems: "center", overflowX: "auto", padding: "var(--s5) var(--s4)" }}>
+          {tasks.map((t, i) => {
+            const st = TASK_ST[t.status] ?? TASK_ST.done;
+            return (
+              <div key={t.id} style={{ display: "flex", alignItems: "center" }}>
+                <div style={{ width: 152, flexShrink: 0, padding: "11px 12px", borderRadius: 12, background: st.bg, border: "1px solid var(--border)", display: "flex", flexDirection: "column", gap: 7 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
+                    <AgentGlyph id={t.agent} size={20} />
+                    <span className="mono" style={{ fontSize: 11, color: "var(--text-3)" }}>{t.id}</span>
+                    <span style={{ marginLeft: "auto", width: 7, height: 7, borderRadius: 99, background: st.dot }} />
+                  </div>
+                  <div style={{ fontSize: 12.5, fontWeight: 600, lineHeight: 1.3, minHeight: 32 }}>{t.title}</div>
+                  <div style={{ fontSize: 11.5, fontWeight: 600, color: st.fg }}>{st.label}</div>
                 </div>
-                <div style={{ fontSize: 12.5, fontWeight: 600, lineHeight: 1.3, minHeight: 32 }}>{t.title}</div>
-                <div style={{ fontSize: 11.5, fontWeight: 600, color: st.fg }}>{st.label}</div>
+                {i < tasks.length - 1 && <Icon name="arrowRight" size={15} style={{ color: "var(--text-3)", margin: "0 6px", flexShrink: 0 }} />}
               </div>
-              {i < TASKS.length - 1 && <Icon name="arrowRight" size={15} style={{ color: "var(--text-3)", margin: "0 6px", flexShrink: 0 }} />}
-            </div>
-          );
-        })}
-      </div>
+            );
+          })}
+        </div>
+      )}
     </Card>
   );
 }

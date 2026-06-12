@@ -351,29 +351,55 @@ def upload_document(req: UploadDocumentRequest, sim: Simulation = Depends(curren
 
 # --- Agent chat ---------------------------------------------------------
 
-def _agent_chat(agent: Agent, message: str, sim: Simulation) -> str:
+def _agent_chat(agent: Agent, message: str, sim: Simulation, attachment=None) -> str:
     """One-shot reply from an agent's persona, grounded in live business state.
-    Live mode (Gemini) fills the reply; demo mode returns the templated fallback
-    — a single code path via `LLM.plan`."""
+    Live mode (Gemini) fills the reply; demo mode returns the templated fallback.
+    An optional `attachment` lets the operator share a doc (text included as
+    context) or an image (analyzed by the multimodal model)."""
     s = sim.state
     recent = next((t for t in sim.traces if t.agent == agent.id), None)
     ctx = (f"Current business state — users {s.users:,}, MRR ${s.mrr:,}, "
            f"churn {s.churn * 100:.1f}%, CAC ${s.cac}, cycle {sim.cycle}.")
     recent_line = (f"My most recent action: {recent.task} → {recent.result}."
                    if recent else "No actions logged yet this run.")
-    msg = message.strip()
+    msg = message.strip() or "What do you make of this?"
+    system = (
+        f"You are {agent.name}, the {agent.role} agent inside HelixOS, an autonomous multi-agent "
+        f"business operating system. {agent.blurb} Your tools: {', '.join(agent.tools)}. "
+        f"Answer the operator concisely (2–4 sentences), grounded in the current business state. "
+        f"Never invent business metrics beyond those provided."
+    )
+    prompt = f"{ctx}\n{recent_line}\n\nOperator asks: {msg}"
+
+    # --- image attachment → multimodal analysis ---
+    if attachment is not None and getattr(attachment, "kind", "") == "image":
+        import base64
+        demo_img = (
+            f"You shared “{attachment.name}”. Image analysis runs in live mode — once a Gemini "
+            f"key is configured I'll read the image and fold what it shows into our {agent.role.lower()} plan."
+        )
+        try:
+            raw = attachment.data.split(",", 1)[-1]  # tolerate a data: URL prefix
+            img_bytes = base64.b64decode(raw)
+        except Exception:
+            return demo_img
+        return get_llm().vision(
+            model=settings.gemini_model_flash, system=system,
+            prompt=f"{prompt}\n\nThe operator attached an image ('{attachment.name}'). "
+                   f"Describe what it shows and how it informs your work.",
+            image=(img_bytes, attachment.mime or "image/png"), fallback=demo_img,
+        )
+
+    # --- text/doc attachment → include as context ---
+    if attachment is not None and getattr(attachment, "data", ""):
+        excerpt = attachment.data[:6000]
+        prompt += f"\n\nAttached document '{attachment.name}':\n{excerpt}"
+
     demo_reply = (
         f"As the {agent.role}, here's my read. {ctx} {recent_line} "
         f"On “{msg}” — I'd lean on {', '.join(agent.tools[:3])} to move the needle. "
         f"Kick off a cycle and I'll put it into action."
     )
-    system = (
-        f"You are {agent.name}, the {agent.role} agent inside HelixOS, an autonomous multi-agent "
-        f"business operating system. {agent.blurb} Your tools: {', '.join(agent.tools)}. "
-        f"Answer the operator concisely (2–4 sentences), grounded in the current business state. "
-        f"Never invent metrics beyond those provided."
-    )
-    prompt = f"{ctx}\n{recent_line}\n\nOperator asks: {msg}"
     out = get_llm().plan(
         model=settings.gemini_model_flash, system=system, prompt=prompt,
         fallback={"reply": demo_reply},
@@ -386,7 +412,7 @@ def chat_agent(agent_id: str, req: ChatRequest, sim: Simulation = Depends(curren
     agent = seed.agent_by_id(agent_id)
     if agent is None:
         raise HTTPException(status_code=404, detail=f"Unknown agent: {agent_id}")
-    reply = _agent_chat(agent, req.message, sim)
+    reply = _agent_chat(agent, req.message, sim, req.attachment)
     return ChatResponse(agent=agent_id, reply=reply, mode="live" if settings.gemini_enabled else "demo")
 
 

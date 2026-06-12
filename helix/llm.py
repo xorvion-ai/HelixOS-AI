@@ -76,6 +76,11 @@ class LLM(Protocol):
         fallback: dict[str, str],
     ) -> dict[str, str]: ...
 
+    def vision(
+        self, *, model: str, system: str, prompt: str,
+        image: tuple[bytes, str] | None, fallback: str,
+    ) -> str: ...
+
     def embed(self, texts: list[str]) -> list[list[float]] | None: ...
 
 
@@ -108,6 +113,10 @@ class FakeLLM:
 
     def plan(self, *, model, system, prompt, fallback) -> dict[str, str]:
         return dict(fallback)
+
+    def vision(self, *, model, system, prompt, image, fallback) -> str:
+        # Offline/demo: no model to look at the image.
+        return fallback
 
     def embed(self, texts):
         return None
@@ -299,6 +308,28 @@ class GeminiLLM:
         except Exception as e:
             log.warning("Gemini plan(%s) failed, falling back: %s", model, e)
             return dict(fallback)
+
+    # -- vision / multimodal reply --------------------------------------
+
+    def vision(self, *, model, system, prompt, image, fallback) -> str:
+        """Free-text reply that can look at an attached image. `image` is
+        (bytes, mime) or None. Falls back to the demo string on any error."""
+        from google.genai import types as gt
+
+        try:
+            parts: list[Any] = [gt.Part(text=prompt)]
+            if image is not None:
+                data, mime = image
+                parts.append(gt.Part.from_bytes(data=data, mime_type=mime or "image/png"))
+            resp = self._gen(
+                model=model,
+                contents=[gt.Content(role="user", parts=parts)],
+                config=gt.GenerateContentConfig(system_instruction=system, temperature=0.4),
+            )
+            return (getattr(resp, "text", "") or "").strip() or fallback
+        except Exception as e:
+            log.warning("Gemini vision(%s) failed, falling back: %s", model, e)
+            return fallback
 
     # -- embeddings -----------------------------------------------------
 

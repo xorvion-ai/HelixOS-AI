@@ -56,10 +56,10 @@ export const TOOL_COUNT = HOME_AGENTS.reduce((s, a) => s + a.tools.length, 0);
 // Business-state history for the showcase sparklines (mirrors seed.CYCLE_HISTORY).
 export const SHOWCASE_HISTORY: CyclePoint[] = [
   { cycle: 0, users: 10000, mrr: 50000, churn: 0.060, cac: 120, budget: 5000, nps: 31, runway: 14 },
-  { cycle: 1, users: 10620, mrr: 53400, churn: 0.058, cac: 116, budget: 4400, nps: 33, runway: 15 },
-  { cycle: 2, users: 11280, mrr: 57000, churn: 0.057, cac: 112, budget: 4850, nps: 34, runway: 15 },
-  { cycle: 3, users: 12100, mrr: 61500, churn: 0.054, cac: 108, budget: 4200, nps: 36, runway: 16 },
-  { cycle: 4, users: 12740, mrr: 65800, churn: 0.057, cac: 109, budget: 4600, nps: 35, runway: 16 },
+  { cycle: 1, users: 10780, mrr: 54200, churn: 0.057, cac: 121, budget: 4400, nps: 34, runway: 15 },
+  { cycle: 2, users: 10510, mrr: 52600, churn: 0.063, cac: 114, budget: 4850, nps: 32, runway: 14 },
+  { cycle: 3, users: 12240, mrr: 61900, churn: 0.052, cac: 110, budget: 4200, nps: 37, runway: 17 },
+  { cycle: 4, users: 11960, mrr: 59300, churn: 0.058, cac: 116, budget: 4600, nps: 35, runway: 16 },
   { cycle: 5, users: 13680, mrr: 71200, churn: 0.051, cac: 104, budget: 3950, nps: 38, runway: 18 },
   { cycle: 6, users: 14580, mrr: 77400, churn: 0.049, cac: 101, budget: 4300, nps: 40, runway: 19 },
 ];

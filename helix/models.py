@@ -191,9 +191,20 @@ class UploadDocumentRequest(BaseModel):
     content: str = ""
 
 
+class ChatAttachment(BaseModel):
+    """A file the operator attached to a chat message. `kind="image"` carries
+    base64-encoded image bytes (analyzed by the multimodal model); `kind="text"`
+    carries extracted document text included as context."""
+    name: str
+    mime: str = ""
+    kind: Literal["image", "text"] = "text"
+    data: str = ""  # base64 (image) or UTF-8 text (text)
+
+
 class ChatRequest(BaseModel):
     """Ask an agent a question in its detail panel."""
     message: str
+    attachment: ChatAttachment | None = None
 
 
 class ChatResponse(BaseModel):

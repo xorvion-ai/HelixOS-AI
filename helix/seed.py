@@ -50,12 +50,17 @@ SCENARIOS: list[Scenario] = [
 
 # --- Business state history (hand-authored per cycle for the demo) ------
 
+# Hand-authored so the demo charts read like a *real* business — every metric
+# wobbles up and down between cycles (dips at C2 and C4, rebounds after) rather
+# than a smooth line. The endpoints (C0 baseline, C6 "current") and the C5→C6
+# deltas are pinned so the headline cards (+8.7% MRR, +6.6% users, 0.2pp churn,
+# −$3 CAC) stay correct.
 CYCLE_HISTORY: list[CyclePoint] = [
     CyclePoint(cycle=0, users=10000, mrr=50000, churn=0.060, cac=120, budget=5000, nps=31, runway=14),
-    CyclePoint(cycle=1, users=10620, mrr=53400, churn=0.058, cac=116, budget=4400, nps=33, runway=15),
-    CyclePoint(cycle=2, users=11280, mrr=57000, churn=0.057, cac=112, budget=4850, nps=34, runway=15),
-    CyclePoint(cycle=3, users=12100, mrr=61500, churn=0.054, cac=108, budget=4200, nps=36, runway=16),
-    CyclePoint(cycle=4, users=12740, mrr=65800, churn=0.057, cac=109, budget=4600, nps=35, runway=16),
+    CyclePoint(cycle=1, users=10780, mrr=54200, churn=0.057, cac=121, budget=4400, nps=34, runway=15),
+    CyclePoint(cycle=2, users=10510, mrr=52600, churn=0.063, cac=114, budget=4850, nps=32, runway=14),
+    CyclePoint(cycle=3, users=12240, mrr=61900, churn=0.052, cac=110, budget=4200, nps=37, runway=17),
+    CyclePoint(cycle=4, users=11960, mrr=59300, churn=0.058, cac=116, budget=4600, nps=35, runway=16),
     CyclePoint(cycle=5, users=13680, mrr=71200, churn=0.051, cac=104, budget=3950, nps=38, runway=18),
     CyclePoint(cycle=6, users=14580, mrr=77400, churn=0.049, cac=101, budget=4300, nps=40, runway=19),
 ]

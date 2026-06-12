@@ -52,6 +52,7 @@ const PATHS: Record<string, string> = {
   scroll: "M6 3h10a2 2 0 0 1 2 2v13a2 2 0 0 0 2 2H8a2 2 0 0 1-2-2zM6 3a2 2 0 0 0-2 2v2h2M9 8h6M9 12h6M9 16h4",
   paperclip: "M21 11l-8.5 8.5a5 5 0 0 1-7-7L14 4a3.5 3.5 0 0 1 5 5l-8.5 8.5a2 2 0 0 1-3-3L15 6",
   upload: "M12 16V4M7 9l5-5 5 5M5 20h14",
+  image: "M4 5h16v14H4zM4 15l4-4 4 4 3-3 5 5M9 9a1.5 1.5 0 1 1-3 0 1.5 1.5 0 0 1 3 0",
 };
 
 export function Icon({ name, size = 18, stroke = 1.6, fill = "none", style, className }: {

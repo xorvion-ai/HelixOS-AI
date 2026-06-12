@@ -176,44 +176,57 @@ export function AgentsScreen() {
 }
 
 // ---- Agent chat (detail panel) ----------------------------------------
+type Attach = { name: string; mime: string; kind: "image" | "text"; data: string };
+
 function AgentChat({ agentId, agentName }: { agentId: string; agentName: string }) {
   const [msgs, setMsgs] = useState<{ role: "you" | "agent"; text: string }[]>([]);
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
+  const [attach, setAttach] = useState<Attach | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
   async function send() {
     const q = input.trim();
-    if (!q || busy) return;
+    if ((!q && !attach) || busy) return;
+    const sent = attach;
     setInput("");
-    setMsgs((m) => [...m, { role: "you", text: q }]);
+    setAttach(null);
+    setMsgs((m) => [...m, { role: "you", text: sent ? `${q ? q + " " : ""}📎 ${sent.name}`.trim() : q }]);
     setBusy(true);
     try {
-      const res = await api.chatAgent(agentId, q);
+      // Image attachments go to the knowledge base too, so they persist for RAG.
+      if (sent?.kind === "text") api.uploadDocument(sent.name, "company_docs", sent.data).catch(() => {});
+      const res = await api.chatAgent(agentId, q || "What do you make of this?", sent ?? undefined);
       setMsgs((m) => [...m, { role: "agent", text: res.reply }]);
     } catch {
       setMsgs((m) => [...m, { role: "agent", text: "I couldn't reach the backend just now — try again." }]);
     } finally { setBusy(false); }
   }
 
-  // Upload a business doc/image: ingest it into the knowledge base so the
-  // agents can use it as context (RAG) when they run cycles.
+  // Stage a business doc/image as an attachment for the next message: images are
+  // analyzed by the multimodal model; text docs are sent as context (and ingested
+  // into the Knowledge Base for RAG).
   async function onFile(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     e.target.value = ""; // allow re-selecting the same file
     if (!file || busy) return;
-    setBusy(true);
-    setMsgs((m) => [...m, { role: "you", text: `📎 ${file.name}` }]);
     try {
-      const isText = /text|json|csv|markdown|xml|html/i.test(file.type) || /\.(txt|md|csv|json|tsv|log)$/i.test(file.name);
-      const content = isText
-        ? (await file.text()).slice(0, 20000)
-        : `[${file.type || "file"}] ${file.name} — uploaded for context.`;
-      await api.uploadDocument(file.name, "company_docs", content);
-      setMsgs((m) => [...m, { role: "agent", text: `Added “${file.name}” to your Knowledge Base. I'll use it as context on the next cycle.` }]);
+      const isImage = /^image\//i.test(file.type);
+      if (isImage) {
+        const dataUrl: string = await new Promise((res, rej) => {
+          const r = new FileReader();
+          r.onload = () => res(String(r.result));
+          r.onerror = rej;
+          r.readAsDataURL(file);
+        });
+        setAttach({ name: file.name, mime: file.type, kind: "image", data: dataUrl });
+      } else {
+        const text = (await file.text()).slice(0, 20000);
+        setAttach({ name: file.name, mime: file.type || "text/plain", kind: "text", data: text });
+      }
     } catch {
-      setMsgs((m) => [...m, { role: "agent", text: "Couldn't upload that file — please try again." }]);
-    } finally { setBusy(false); }
+      setMsgs((m) => [...m, { role: "agent", text: "Couldn't read that file — please try another." }]);
+    }
   }
 
   return (
@@ -233,9 +246,20 @@ function AgentChat({ agentId, agentName }: { agentId: string; agentName: string 
           {busy && <div style={{ alignSelf: "flex-start", fontSize: 12, color: "var(--text-3)", padding: "4px 2px" }}>{agentName} is thinking…</div>}
         </div>
       )}
+      {attach && (
+        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8, padding: "7px 10px", borderRadius: 9, background: "var(--bg-sunken)", border: "1px solid var(--border)", fontSize: 12 }}>
+          <Icon name={attach.kind === "image" ? "image" : "doc"} size={14} style={{ color: "var(--text-3)" }} />
+          <span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontWeight: 600 }}>{attach.name}</span>
+          <span style={{ color: "var(--text-3)" }}>{attach.kind === "image" ? "image" : "doc"}</span>
+          <button type="button" aria-label="Remove attachment" onClick={() => setAttach(null)}
+            style={{ background: "transparent", border: "none", color: "var(--text-3)", cursor: "pointer", display: "grid", placeItems: "center" }}>
+            <Icon name="x" size={14} />
+          </button>
+        </div>
+      )}
       <div style={{ display: "flex", gap: 8 }}>
         <input ref={fileRef} type="file" hidden
-          accept=".txt,.md,.csv,.json,.tsv,.log,.pdf,image/*"
+          accept=".txt,.md,.csv,.json,.tsv,.log,image/*"
           onChange={onFile} />
         <button type="button" aria-label="Upload a document or image" title="Upload a business doc or image"
           onClick={() => fileRef.current?.click()} disabled={busy}
@@ -243,12 +267,12 @@ function AgentChat({ agentId, agentName }: { agentId: string; agentName: string 
           <Icon name="paperclip" size={16} />
         </button>
         <input value={input} onChange={(e) => setInput(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") send(); }}
-          placeholder={`Message ${agentName}…`}
+          placeholder={attach ? `Ask about ${attach.name}…` : `Message ${agentName}…`}
           style={{ flex: 1, padding: "9px 12px", borderRadius: 9, border: "1px solid var(--border-strong)", background: "var(--bg)", color: "var(--text)", fontSize: 13, outline: "none", fontFamily: "inherit" }} />
-        <Button variant="primary" icon="arrowRight" onClick={send} disabled={busy || !input.trim()} />
+        <Button variant="primary" icon="arrowRight" onClick={send} disabled={busy || (!input.trim() && !attach)} />
       </div>
       <div style={{ fontSize: 11, color: "var(--text-3)", marginTop: 7 }}>
-        Upload a business doc or image (📎) and {agentName} will use it as context.
+        Attach a business doc or image (📎) and {agentName} will read it.
       </div>
     </div>
   );
