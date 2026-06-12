@@ -187,11 +187,26 @@ export function AppFrameMock() {
             </div>
           ))}
         </nav>
-        <div style={{ marginTop: "auto", display: "flex", alignItems: "center", gap: 9, padding: "10px 11px", borderRadius: 10, background: "var(--bg-sunken)", border: "1px solid var(--border)" }}>
-          <div style={{ width: 28, height: 28, borderRadius: 8, background: "var(--accent)", color: "var(--accent-fg)", display: "grid", placeItems: "center", fontWeight: 700, fontSize: 13 }}>A</div>
-          <div style={{ minWidth: 0, flex: 1 }}>
-            <div style={{ fontSize: 12.5, fontWeight: 600 }}>Andre · Founder</div>
-            <div style={{ fontSize: 11, color: "var(--text-3)" }}>CouponEx workspace</div>
+        <div style={{ marginTop: "auto", display: "flex", flexDirection: "column", gap: 8 }}>
+          {/* Support / Privacy / Terms — vertical, matching the real app */}
+          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            {([["life", "Support"], ["shield", "Privacy"], ["scroll", "Terms & Conditions"]] as [string, string][]).map(([icon, label]) => (
+              <div key={label} style={{
+                display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
+                padding: "7px 10px", borderRadius: 9, fontSize: 12, fontWeight: 600,
+                border: "1px solid var(--border)", background: "var(--surface)", color: "var(--text-2)",
+              }}>
+                <Icon name={icon} size={14} /> {label}
+              </div>
+            ))}
+          </div>
+          {/* user card */}
+          <div style={{ display: "flex", alignItems: "center", gap: 9, padding: "10px 11px", borderRadius: 10, background: "var(--bg-sunken)", border: "1px solid var(--border)" }}>
+            <div style={{ width: 28, height: 28, borderRadius: 8, background: "var(--accent)", color: "var(--accent-fg)", display: "grid", placeItems: "center", fontWeight: 700, fontSize: 13 }}>A</div>
+            <div style={{ minWidth: 0, flex: 1 }}>
+              <div style={{ fontSize: 12.5, fontWeight: 600 }}>Andre · Founder</div>
+              <div style={{ fontSize: 11, color: "var(--text-3)" }}>CouponEx workspace</div>
+            </div>
           </div>
         </div>
       </aside>
@@ -232,7 +247,7 @@ export function AppFrameMock() {
                   </div>
                 </div>
                 <div style={{ height: 392, padding: "var(--s5) var(--s4) var(--s4)" }}>
-                  <OrgChart layout="radial" compact ambient
+                  <OrgChart layout="tree" compact ambient
                     statuses={{ marketing: "working" }}
                     activeEdge={["operations", "marketing"]} activeNodes={["operations", "marketing"]} />
                 </div>
