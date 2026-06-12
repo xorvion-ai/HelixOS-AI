@@ -136,6 +136,23 @@ class WorkspaceState:
         )
         return cls(workspace_id=workspace_id, scenario=scenario, history=[base], cycle=0, onboarded=False)
 
+    def reset_to_demo(self) -> None:
+        """Restore the full CouponEx demo: its authored multi-cycle history,
+        traces, memory, approvals and insights — so loading the "Demo" preset
+        shows the rich up/down charts, not a single cycle-0 point."""
+        d = WorkspaceState.demo(self.workspace_id)
+        self.scenario = d.scenario
+        self.history = d.history
+        self.cycle = d.cycle
+        self.traces = d.traces
+        self.memory = d.memory
+        self.approvals = d.approvals
+        self.insights = d.insights
+        self.onboarded = True
+        self.is_running = False
+        self.paused_thread = None
+        self.paused_approval_id = None
+
     def reset_scenario(self, scenario: Scenario, base: CyclePoint) -> None:
         """Reset to a freshly loaded business at cycle 0. Mirrors the old
         `load_scenario`: clears dynamic lists but **keeps the id cursors**

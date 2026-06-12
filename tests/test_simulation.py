@@ -47,13 +47,27 @@ def test_traces_prepended_newest_first():
     assert top.cycle == sim.cycle
 
 
-def test_load_preset_scenario_resets():
+def test_load_nondemo_preset_resets():
+    # A non-demo preset (e.g. Lumen) resets to a bare cycle-0 point.
+    lumen = next(s for s in seed.SCENARIOS if s.id != "couponex")
     sim = fresh()
     sim.run_cycle()
-    sim.load_scenario(seed.SCENARIOS[0].id, None)
+    sim.load_scenario(lumen.id, None)
     assert sim.cycle == 0
     assert len(sim.history) == 1
     assert sim.scenario.active
+
+
+def test_load_couponex_restores_demo_history():
+    # Loading the CouponEx "Demo" preset restores its full authored history
+    # (rich up/down charts), not a single cycle-0 point.
+    sim = fresh()
+    sim.load_scenario("custom", ScenarioSeed(users=500, mrr=1000, marketing_budget=200, competitors=1, churn=0.02, cac=30))
+    assert sim.cycle == 0 and len(sim.history) == 1
+    sim.load_scenario("couponex", None)
+    assert sim.scenario.id == "couponex"
+    assert len(sim.history) == len(seed.CYCLE_HISTORY)
+    assert sim.cycle == seed.CYCLE_HISTORY[-1].cycle
 
 
 def test_load_custom_scenario():

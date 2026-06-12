@@ -104,6 +104,12 @@ class Simulation:
         `name` (the user's company name) is carried onto the scenario."""
         with self._lock:
             self._hydrate()
+            # Loading the CouponEx "Demo" preset restores its full authored
+            # history (rich up/down charts), not a bare cycle-0 point.
+            if scenario_id == "couponex":
+                self._ws.reset_to_demo()
+                self._persist()
+                return
             if scenario_id == "custom" and custom_seed is not None:
                 company = (name or "").strip() or "Custom business"
                 scenario = Scenario(
