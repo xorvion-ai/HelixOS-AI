@@ -1,14 +1,16 @@
 # HelixOS AI — Project Status & Reference
 
-_Last updated: 2026-06-11 — **Feature-complete pass**: Tweaks panel (theme/accent/
-density), knowledge-base upload + `/api/documents`, interactive agent chat
-(`/api/agents/{id}/chat`, demo-templated + live Gemini), loading/error states,
-responsive homepage, a **pytest suite** (31 tests) alongside the offline check
-(41/41), and the LangGraph **Postgres checkpointer** wired with MemorySaver
-fallback. Demo mode unchanged (tsc clean). Earlier this session: Realtime
-activity stream (C part 2-A), Admin Console (Phase K), Supabase persistence +
-Auth (C part 1). **Remaining = deploy + live-key/DB smoke tests + secret
-rotation** (see §13)._
+_Last updated: 2026-06-12 — **Multi-tenant + GitHub published; Vercel deploy
+BLOCKED on a 250 MB Python serverless function** (see §13 → "DEPLOY BLOCKER").
+This session added: per-user workspaces + onboarding, admin allowlist
+(`sumitchoudhary2812@gmail.com`-only Admin Console + demo data), dynamic
+profile/sidebar, `/api/me`. Pushed to **github.com/Sumitkr28/HelixOS-AI** and
+**github.com/xorvion-ai/HelixOS-AI** (per-account READMEs + favicon
+`src/app/icon.svg`; CLAUDE.md/.claude/build-logs removed). xorvion-ai also has
+Vercel Web Analytics (`@vercel/analytics`, pnpm). Earlier this session:
+feature-complete pass (Tweaks/upload/chat/responsive/pytest), Realtime, Admin
+Console, Supabase persistence+Auth. tsc + 34 pytest + 41 offline checks green;
+local prod build green. **The deployed Vercel build fails** — fix that next._
 
 This is the **single source of truth** for the project: what it is, what we're
 building, what's done, and what's left — in detail. Companion docs:
@@ -452,6 +454,74 @@ PLAN.md · README.md · STATUS.md
 ---
 
 ## 13. Where to pick up next (session handoff)
+
+### 🚨 DEPLOY BLOCKER (2026-06-12) — Vercel build fails: Python function > 250 MB
+Deploying **xorvion-ai/HelixOS-AI** to Vercel (project `helix-os-ai`, Hobby).
+The Next.js build succeeds; the deploy then fails with:
+> _"A Serverless Function has exceeded the unzipped maximum size of 250 MB."_
+
+This is the **Python/FastAPI** function (`api/index.py`, `@vercel/python@4.3.1`,
+routed via `vercel.json` rewrite `/api/(.*) → /api/index`). The app is a
+Next.js 16 frontend + Python `/api` **hybrid in one Vercel project**.
+
+**Tried (did NOT fix it):**
+1. `vercel.json` → `functions["api/index.py"].excludeFiles` glob for
+   `{node_modules,.next,…}`. **Ignored** — Vercel ignores `functions.excludeFiles`
+   in **Next.js-framework** projects (per the vercel.json docs caveat; it points
+   to `outputFileTracingExcludes`, which only governs Next's *own* functions, not
+   our separate Python one).
+2. Removed `uvicorn[standard]` from `requirements.txt` → `requirements-dev.txt`
+   (Vercel invokes the ASGI `app` directly; uvicorn is dev-only).
+3. Added `.vercelignore` (node_modules, .next, tests, Helix11, *.log, …).
+
+**Diagnosis:** the real Python deps are light — local `.venv` site-packages is
+~104 MB *including* dev-only junk (pip, pytest, win32, tree_sitter) that Vercel
+never installs; true runtime set (fastapi, pydantic(-settings), httpx,
+google-genai, langgraph, langchain-core, supabase, truststore, python-dotenv) is
+~100–130 MB. So 250 MB strongly implies the `@vercel/python` builder is
+**bundling the build-time `node_modules`** (~300 MB) into the function — and in a
+Next.js project there's no `vercel.json` knob to stop it.
+
+**NEXT STEP — get ground truth, then fix:**
+1. Vercel → Settings → Env Vars → add `VERCEL_ANALYZE_BUILD_OUTPUT=1`, redeploy,
+   read the failed build's logs → it lists the largest files in the function
+   bundle. **Confirm whether `node_modules` is inside the Python function.**
+2. If `node_modules` IS bundled (most likely), candidate fixes:
+   - **Split deployment**: deploy the Python backend as its **own** Vercel
+     project (or Render/Railway/Fly free tier) and set `NEXT_PUBLIC_API_BASE` to
+     its URL; keep this project as Next-only. (Cleanest; `api.ts` already honors
+     `NEXT_PUBLIC_API_BASE`, and CORS is configurable via `CORS_ORIGINS`.)
+   - Or try a **root `api/` with its own `requirements.txt`** isolated from the
+     Next root, / investigate `@vercel/python` `includeFiles` whitelist behavior.
+3. If it's genuinely the **deps**: drop `supabase` (supabase-py → rewrite
+   `supabase_store.py` over PostgREST via `httpx`, which is already used in
+   `auth.py`) — removes gotrue/postgrest/realtime/storage3/supafunc + cryptography.
+   Live mode still needs google-genai + langgraph + langchain-core.
+
+**Repo/deploy facts for the new session:**
+- Vercel project `helix-os-ai` (team `xorvionai-1386's projects`, Hobby), imports
+  `xorvion-ai/HelixOS-AI`, Next.js preset, root `./`.
+- Env: import `.env.production.local` (git-ignored, in repo root) — has Supabase
+  (backend + `NEXT_PUBLIC_*`), `GOOGLE_API_KEY`, `ADMIN_EMAILS`,
+  `CORS_ORIGINS=https://helix-os-ai.vercel.app`; **`NEXT_PUBLIC_API_BASE` removed**
+  (must stay relative on Vercel).
+- After a green deploy: run migrations `0001`→`0004` in Supabase; add
+  `https://helix-os-ai.vercel.app/auth/callback` to Supabase Auth redirect URLs +
+  Google OAuth; update the README live-badge URL (`helix-os-ai.vercel.app`).
+- 🔐 Rotate the leaked secrets (GitHub PATs, Gemini key, Supabase service_role).
+
+### Multi-tenant + publish (2026-06-12)
+- **Per-user product**: `helix/auth.py` `resolve_user()` → `AuthUser`
+  (id/email/name/is_admin); `config.admin_emails` allowlist
+  (`sumitchoudhary2812@gmail.com`). `current_sim` seeds the **CouponEx demo** only
+  for admins/the public demo; everyone else gets `WorkspaceState.onboarding()`
+  (empty, `onboarded=False`). `GET /api/me`; `/api/admin/usage` 403s non-admins.
+  `store.ensure(seed_demo)`, migration `0004_onboarding.sql` (workspaces.onboarded).
+- **Frontend**: `MeContext` (`/api/me`), `Onboarding.tsx` (gate in `DashboardClient`
+  when `!onboarded` → company-setup form → `loadScenario("custom", seed)`),
+  dynamic `ProfileScreen` + sidebar user card, Admin nav gated to `is_admin`.
+- **Published** to both GitHub repos (per-account author + README + favicon).
+  Verified live on remotes. Tests: 34 pytest + 41 offline; local prod build green.
 
 ### Landed this session (2026-06-11) — Feature-complete pass
 - ✅ **Tweaks panel** (`src/components/Tweaks.tsx`) — theme (light/dark), accent

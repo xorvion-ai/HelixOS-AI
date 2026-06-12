@@ -46,6 +46,11 @@ class Store(Protocol):
         for stores without a realtime backend (demo / in-memory)."""
         ...
 
+    def list_onboarded_workspace_ids(self, limit: int) -> list[str]:
+        """Workspace ids eligible for an automated background cycle (onboarded,
+        not mid-run). Used by the cron endpoint. Newest-active first."""
+        ...
+
 
 class InMemoryStore:
     """Process-local store — the free-phase demo. `save` is a no-op because
@@ -73,6 +78,9 @@ class InMemoryStore:
         # Demo mode has no Realtime backend; the triggering client animates
         # locally from the HTTP response, so there's nothing to broadcast.
         return None
+
+    def list_onboarded_workspace_ids(self, limit: int) -> list[str]:
+        return [wid for wid, ws in self._spaces.items() if ws.onboarded][:limit]
 
 
 # The persistent store (when configured) is process-wide so every workspace

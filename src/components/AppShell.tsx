@@ -31,11 +31,12 @@ const HEAD: Record<Screen, { title: string; sub: string }> = {
   profile: { title: "My Profile", sub: "Your account, workspace and connected providers." },
   support: { title: "Support", sub: "Get help, contact us, and read the FAQ." },
   privacy: { title: "Privacy Policy", sub: "How HelixOS handles your data." },
+  terms: { title: "Terms & Conditions", sub: "The terms that govern your use of HelixOS." },
   admin: { title: "Admin Console", sub: "Workspace administration and the support queue." },
 };
 
 // Screens that are utility/account pages — no cycle controls in the header.
-const UTILITY: Screen[] = ["profile", "support", "privacy", "admin"];
+const UTILITY: Screen[] = ["profile", "support", "privacy", "terms", "admin"];
 
 function pill(active: boolean): CSSProperties {
   return {
@@ -109,12 +110,15 @@ export function AppShell({ children }: { children: ReactNode }) {
         </nav>
 
         <div style={{ borderTop: "1px solid var(--border)", padding: "12px 14px", display: "flex", flexDirection: "column", gap: 10 }}>
-          <div style={{ display: "flex", gap: 8 }}>
+          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
             <button type="button" onClick={() => sim.setScreen("support")} style={pill(sim.activeScreen === "support")}>
               <Icon name="life" size={14} /> Support
             </button>
             <button type="button" onClick={() => sim.setScreen("privacy")} style={pill(sim.activeScreen === "privacy")}>
               <Icon name="shield" size={14} /> Privacy
+            </button>
+            <button type="button" onClick={() => sim.setScreen("terms")} style={pill(sim.activeScreen === "terms")}>
+              <Icon name="scroll" size={14} /> Terms &amp; Conditions
             </button>
           </div>
           <button type="button" onClick={() => sim.setScreen("profile")}
@@ -123,7 +127,12 @@ export function AppShell({ children }: { children: ReactNode }) {
               borderRadius: "var(--r2)", border: "1px solid var(--border)", cursor: "pointer", textAlign: "left",
               background: sim.activeScreen === "profile" ? "var(--accent-soft)" : "var(--surface)",
             }}>
-            <div style={{ width: 32, height: 32, borderRadius: 10, background: "var(--accent)", color: "var(--accent-fg)", display: "grid", placeItems: "center", fontWeight: 700, fontSize: 14 }}>{initial}</div>
+            {me?.picture ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={me.picture} alt="" referrerPolicy="no-referrer" style={{ width: 32, height: 32, borderRadius: 10, objectFit: "cover" }} />
+            ) : (
+              <div style={{ width: 32, height: 32, borderRadius: 10, background: "var(--accent)", color: "var(--accent-fg)", display: "grid", placeItems: "center", fontWeight: 700, fontSize: 14 }}>{initial}</div>
+            )}
             <div style={{ minWidth: 0, flex: 1 }}>
               <div style={{ fontSize: 12.5, fontWeight: 650, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{displayName}</div>
               <div style={{ fontSize: 11, color: "var(--text-3)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{roleLine}</div>

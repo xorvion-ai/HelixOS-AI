@@ -28,6 +28,7 @@ class AuthUser:
     id: str
     email: str | None = None
     name: str | None = None
+    picture: str | None = None
     is_default: bool = False
 
     @property
@@ -90,7 +91,10 @@ def resolve_user(authorization: str | None) -> AuthUser:
 
     meta = data.get("user_metadata") or {}
     name = meta.get("full_name") or meta.get("name") or None
-    user = AuthUser(id=user_id, email=data.get("email"), name=name)
+    # OAuth providers expose the avatar under different keys (Google → "picture",
+    # GitHub/Supabase → "avatar_url").
+    picture = meta.get("avatar_url") or meta.get("picture") or None
+    user = AuthUser(id=user_id, email=data.get("email"), name=name, picture=picture)
     _cache[token] = (user, now + _CACHE_TTL)
     return user
 

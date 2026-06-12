@@ -14,7 +14,7 @@ const NO_BUMP = { mrr: false, users: false, churn: false, cac: false };
 export type Screen =
   | "command" | "orgchart" | "observability" | "agents"
   | "approvals" | "knowledge" | "memory" | "simulation"
-  | "profile" | "support" | "privacy" | "admin";
+  | "profile" | "support" | "privacy" | "terms" | "admin";
 
 export interface Sim extends DashCtx {
   agents: Agent[];

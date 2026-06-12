@@ -152,7 +152,7 @@ export function AgentsScreen() {
             <AgentGlyph id={sel.id} size={44} />
             <div>
               <div style={{ fontWeight: 700, fontSize: 17 }}>{sel.name}</div>
-              <div style={{ fontSize: 12.5, color: "var(--text-3)" }}>{sel.role} · {sel.model}</div>
+              <div style={{ fontSize: 12.5, color: "var(--text-3)" }}>{sel.role} · Live</div>
             </div>
           </div>
           <div style={{ fontSize: 13, color: "var(--text-2)", marginTop: 12, lineHeight: 1.55 }}>{sel.blurb}</div>

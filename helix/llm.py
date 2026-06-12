@@ -115,16 +115,61 @@ class FakeLLM:
 
 # --- Real Gemini implementation ----------------------------------------
 
+@dataclass
+class _KeySlot:
+    """One Gemini API key + its client. `model_override`, when set, replaces the
+    requested model for this slot (the fallback key serves a lighter model)."""
+    client: Any
+    model_override: str | None = None
+
+
 class GeminiLLM:
-    """google-genai backed implementation."""
+    """google-genai backed implementation with automatic multi-key failover.
+
+    Holds one client per configured key. Every generate call walks the slots in
+    order: on a quota / rate-limit error (HTTP 429 / RESOURCE_EXHAUSTED) it moves
+    to the next key and retries; any other error is raised immediately. This lets
+    the app keep running once the primary free-tier key is exhausted — the second
+    key (serving `gemini_model_fallback`) takes over transparently."""
 
     enabled = True
 
-    def __init__(self, api_key: str, embed_model: str) -> None:
+    def __init__(self, keys: list[str], embed_model: str, fallback_model: str | None = None) -> None:
         from google import genai  # imported lazily so demo mode needs no install
         self._genai = genai
-        self._client = genai.Client(api_key=api_key)
         self._embed_model = embed_model
+        if not keys:
+            raise ValueError("GeminiLLM requires at least one API key")
+        self._slots: list[_KeySlot] = []
+        for i, key in enumerate(keys):
+            # The primary key uses the requested model; spare keys serve the
+            # lighter fallback model.
+            override = None if i == 0 else fallback_model
+            self._slots.append(_KeySlot(client=genai.Client(api_key=key), model_override=override))
+        # Back-compat: some call sites / tests reference `_client` directly.
+        self._client = self._slots[0].client
+
+    # -- multi-key failover ---------------------------------------------
+
+    def _gen(self, *, model: str, contents: Any, config: Any):
+        """generate_content with key failover. Tries each slot in order; on a
+        quota/rate-limit error moves to the next key, else re-raises."""
+        last_exc: Exception | None = None
+        for i, slot in enumerate(self._slots):
+            use_model = slot.model_override or model
+            try:
+                return slot.client.models.generate_content(
+                    model=use_model, contents=contents, config=config,
+                )
+            except Exception as e:  # noqa: BLE001 - inspected below
+                if _is_quota_error(e) and i < len(self._slots) - 1:
+                    log.warning("Gemini key #%d hit a quota/rate limit; failing over to next key", i + 1)
+                    last_exc = e
+                    continue
+                raise
+        if last_exc:
+            raise last_exc
+        raise RuntimeError("no Gemini keys available")
 
     # -- helpers --------------------------------------------------------
 
@@ -183,9 +228,7 @@ class GeminiLLM:
         last_text = ""
         # Bounded loop: at most one round per tool plus a final summary turn.
         for _ in range(len(tools) + 2):
-            resp = self._client.models.generate_content(
-                model=model, contents=contents, config=config,
-            )
+            resp = self._gen(model=model, contents=contents, config=config)
             tokens += _usage(resp)
             fcs = list(getattr(resp, "function_calls", None) or [])
             if not fcs:
@@ -236,7 +279,7 @@ class GeminiLLM:
                 properties={k: gt.Schema(type=gt.Type.STRING) for k in fallback},
                 required=list(fallback),
             )
-            resp = self._client.models.generate_content(
+            resp = self._gen(
                 model=model,
                 contents=[gt.Content(role="user", parts=[gt.Part(text=prompt)])],
                 config=gt.GenerateContentConfig(
@@ -260,15 +303,31 @@ class GeminiLLM:
     # -- embeddings -----------------------------------------------------
 
     def embed(self, texts: list[str]) -> list[list[float]] | None:
-        try:
-            resp = self._client.models.embed_content(model=self._embed_model, contents=texts)
-            return [list(e.values) for e in resp.embeddings]
-        except Exception as e:
-            log.warning("Gemini embed failed, falling back to keyword search: %s", e)
-            return None
+        last_exc: Exception | None = None
+        for i, slot in enumerate(self._slots):
+            try:
+                resp = slot.client.models.embed_content(model=self._embed_model, contents=texts)
+                return [list(e.values) for e in resp.embeddings]
+            except Exception as e:
+                last_exc = e
+                if _is_quota_error(e) and i < len(self._slots) - 1:
+                    continue
+                break
+        log.warning("Gemini embed failed, falling back to keyword search: %s", last_exc)
+        return None
 
 
 # --- helpers ------------------------------------------------------------
+
+def _is_quota_error(exc: Exception) -> bool:
+    """True when an exception looks like a rate-limit / quota-exhausted error
+    (HTTP 429 / RESOURCE_EXHAUSTED), which is what we fail over on."""
+    code = getattr(exc, "code", None) or getattr(exc, "status_code", None)
+    if code == 429:
+        return True
+    text = f"{getattr(exc, 'status', '')} {exc}".lower()
+    return any(s in text for s in ("429", "resource_exhausted", "quota", "rate limit", "too many requests"))
+
 
 def _usage(resp: Any) -> int:
     meta = getattr(resp, "usage_metadata", None)
@@ -308,7 +367,11 @@ def get_llm() -> LLM:
     settings = get_settings()
     if settings.gemini_enabled:
         try:
-            _instance = GeminiLLM(settings.google_api_key, settings.gemini_embed_model)
+            _instance = GeminiLLM(
+                settings.gemini_keys,
+                settings.gemini_embed_model,
+                fallback_model=settings.gemini_model_fallback,
+            )
         except Exception as e:  # SDK missing / bad key shape → demo fallback
             log.warning("Gemini unavailable (%s); using FakeLLM", e)
             _instance = FakeLLM()

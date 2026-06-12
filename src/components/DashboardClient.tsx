@@ -12,7 +12,7 @@ import {
   AgentsScreen, ApprovalsScreen, KnowledgeScreen, MemoryScreen,
   ObservabilityScreen, OrgChartScreen,
 } from "./screens";
-import { AdminScreen, PrivacyScreen, ProfileScreen, SupportScreen } from "./AccountScreens";
+import { AdminScreen, PrivacyScreen, ProfileScreen, SupportScreen, TermsScreen } from "./AccountScreens";
 
 function ActiveScreen() {
   const { activeScreen } = useSim();
@@ -28,6 +28,7 @@ function ActiveScreen() {
     case "profile": return <ProfileScreen />;
     case "support": return <SupportScreen />;
     case "privacy": return <PrivacyScreen />;
+    case "terms": return <TermsScreen />;
     case "admin": return <AdminScreen />;
     default: return <CommandCenter />;
   }

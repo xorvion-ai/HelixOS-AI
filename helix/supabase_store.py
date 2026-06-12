@@ -176,6 +176,23 @@ class SupabaseStore:
         except Exception:  # pragma: no cover - defensive (table/publication missing)
             log.exception("activity_events insert failed (realtime disabled?)")
 
+    def list_onboarded_workspace_ids(self, limit: int) -> list[str]:
+        """Onboarded, idle workspaces — the ones a background cron run steps."""
+        try:
+            res = (
+                self._client.table("workspaces")
+                .select("id")
+                .eq("onboarded", True)
+                .eq("is_running", False)
+                .order("updated_at", desc=True)
+                .limit(limit)
+                .execute()
+            )
+            return [r["id"] for r in (res.data or [])]
+        except Exception:  # pragma: no cover - defensive
+            log.exception("list_onboarded_workspace_ids failed")
+            return []
+
     # --- row builders ---------------------------------------------------
 
     @staticmethod

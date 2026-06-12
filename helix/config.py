@@ -42,13 +42,27 @@ class Settings(BaseSettings):
     # sees the seeded CouponEx demo workspace; everyone else gets their own
     # (empty → onboarding) workspace.
     admin_emails: str = "sumitchoudhary2812@gmail.com"
+    # Shared secret that guards the background cron endpoint (/api/cron/cycle).
+    # Vercel Cron sends it as `Authorization: Bearer <CRON_SECRET>`. When unset,
+    # the endpoint is disabled (returns 503) so it can't be triggered publicly.
+    cron_secret: str | None = None
+    # Max workspaces a single cron run will step (bounds runtime on free tiers).
+    cron_max_workspaces: int = 25
 
     # --- Google Gemini (LLM) ---
     # Defaults are current free-tier models (the 1.5 family was retired in
     # 2025). Override via env if you prefer 2.0-flash etc.
     google_api_key: str | None = None
+    # Optional second Gemini key. When set, the LLM layer fails over to it
+    # automatically once the primary key hits its rate/quota limit (HTTP 429),
+    # so cycles keep running. The fallback key uses `gemini_model_fallback`
+    # (a lighter/cheaper model — e.g. a flash-lite tier).
+    google_api_key_2: str | None = None
     gemini_model_pro: str = "gemini-2.5-pro"
     gemini_model_flash: str = "gemini-2.5-flash"
+    # Model used by the second (fallback) key. Set this to the exact model id
+    # you want the spare key to serve (e.g. a flash-lite tier).
+    gemini_model_fallback: str = "gemini-2.5-flash-lite"
     gemini_embed_model: str = "text-embedding-004"
 
     # --- Chroma Cloud (RAG vector store) ---
@@ -78,7 +92,12 @@ class Settings(BaseSettings):
 
     @property
     def gemini_enabled(self) -> bool:
-        return bool(self.google_api_key)
+        return bool(self.google_api_key or self.google_api_key_2)
+
+    @property
+    def gemini_keys(self) -> list[str]:
+        """Available Gemini API keys, in failover order (primary first)."""
+        return [k for k in (self.google_api_key, self.google_api_key_2) if k]
 
     @property
     def chroma_enabled(self) -> bool:

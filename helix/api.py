@@ -40,7 +40,7 @@ from .models import (
     UploadDocumentRequest,
 )
 from .simulation import Simulation, get_simulation
-from .store import StaleWorkspaceError
+from .store import StaleWorkspaceError, get_store
 
 settings = get_settings()
 
@@ -110,6 +110,7 @@ def me(user: AuthUser = Depends(current_user), sim: Simulation = Depends(current
         "id": user.id,
         "email": user.email,
         "name": user.name,
+        "picture": user.picture,
         "is_admin": user.is_admin,
         "is_default": user.is_default,
         "onboarded": sim.onboarded,
@@ -177,6 +178,47 @@ def resume_cycle(
     if resumed is None:
         raise HTTPException(status_code=404, detail="No paused cycle for that thread")
     return resumed
+
+
+# --- Background autonomous cycle (cron) --------------------------------
+
+@app.post("/api/cron/cycle")
+def cron_cycle(authorization: str | None = Header(default=None)) -> dict:
+    """Step every eligible workspace forward one autonomous cycle.
+
+    Designed to be called on a schedule (Vercel Cron, or any external cron) so
+    the agents keep working in the background and dashboards stay fresh without
+    a human clicking "Run cycle". Guarded by `CRON_SECRET`: the caller must send
+    `Authorization: Bearer <CRON_SECRET>` (Vercel Cron does this automatically
+    when the env var is set). When `CRON_SECRET` is unset the endpoint is
+    disabled so it can never be triggered publicly.
+    """
+    secret = settings.cron_secret
+    if not secret:
+        raise HTTPException(status_code=503, detail="Background cron is not configured")
+    token = (authorization or "").split(None, 1)
+    if len(token) != 2 or token[0].lower() != "bearer" or token[1].strip() != secret:
+        raise HTTPException(status_code=401, detail="Invalid cron credentials")
+
+    # In demo mode there is just the public demo workspace; with Supabase, step
+    # each onboarded, idle workspace (bounded so a free-tier run stays short).
+    if settings.supabase_enabled:
+        ids = get_store().list_onboarded_workspace_ids(settings.cron_max_workspaces)
+    else:
+        ids = ["default"]
+
+    stepped: list[dict] = []
+    for wid in ids:
+        try:
+            sim = get_simulation(wid, seed_demo=(wid == "default"))
+            if not sim.onboarded:
+                continue
+            res = sim.run_cycle(interactive=False)
+            stepped.append({"workspace": wid, "cycle": res.cycle})
+        except Exception as e:  # one workspace must not abort the whole run
+            stepped.append({"workspace": wid, "error": str(e)})
+
+    return {"ran": len([s for s in stepped if "cycle" in s]), "workspaces": stepped}
 
 
 # --- Dashboard (Command Center) ----------------------------------------

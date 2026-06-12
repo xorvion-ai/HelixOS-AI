@@ -47,6 +47,9 @@ const PATHS: Record<string, string> = {
   shield: "M12 3l7 3v6c0 4-3 7-7 8-4-1-7-4-7-8V6z",
   globe: "M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18ZM3 12h18M12 3c2.5 2.5 2.5 15.5 0 18M12 3c-2.5 2.5-2.5 15.5 0 18",
   book: "M5 4h14v16H7a2 2 0 0 1-2-2zM5 18a2 2 0 0 1 2-2h12",
+  sun: "M12 7a5 5 0 1 0 0 10 5 5 0 0 0 0-10ZM12 2v2M12 20v2M4 12H2M22 12h-2M5 5l1.5 1.5M17.5 17.5L19 19M19 5l-1.5 1.5M6.5 17.5L5 19",
+  moon: "M20 14.5A8 8 0 0 1 9.5 4 7 7 0 1 0 20 14.5Z",
+  scroll: "M6 3h10a2 2 0 0 1 2 2v13a2 2 0 0 0 2 2H8a2 2 0 0 1-2-2zM6 3a2 2 0 0 0-2 2v2h2M9 8h6M9 12h6M9 16h4",
 };
 
 export function Icon({ name, size = 18, stroke = 1.6, fill = "none", style, className }: {

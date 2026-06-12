@@ -141,6 +141,7 @@ export interface Me {
   id: string;
   email: string | null;
   name: string | null;
+  picture: string | null;
   is_admin: boolean;
   is_default: boolean;
   onboarded: boolean;
